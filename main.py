@@ -1,24 +1,37 @@
-from astrbot.api.event import filter, AstrMessageEvent, MessageEventResult
+import traceback
+
+from astrbot.api.event import filter, AstrMessageEvent
 from astrbot.api.star import Context, Star, register
 from astrbot.api import logger
 
-@register("helloworld", "YourName", "一个简单的 Hello World 插件", "1.0.0")
-class MyPlugin(Star):
-    def __init__(self, context: Context):
-        super().__init__(context)
+STYLE_MARKER = "<!-- bubbly_barto_style_v1 -->"
 
-    async def initialize(self):
-        """可选择实现异步的插件初始化方法，当实例化该插件类之后会自动调用该方法。"""
 
-    # 注册指令的装饰器。指令名为 helloworld。注册成功后，发送 `/helloworld` 就会触发这个指令，并回复 `你好, {user_name}!`
-    @filter.command("helloworld")
-    async def helloworld(self, event: AstrMessageEvent):
-        """这是一个 hello world 指令""" # 这是 handler 的描述，将会被解析方便用户了解插件内容。建议填写。
-        user_name = event.get_sender_name()
-        message_str = event.message_str # 用户发的纯文本消息字符串
-        message_chain = event.get_messages() # 用户所发的消息的消息链 # from astrbot.api.message_components import *
-        logger.info(message_chain)
-        yield event.plain_result(f"Hello, {user_name}, 你发了 {message_str}!") # 发送一条纯文本消息
+@register("bubbly_barto", "zss33ss", "注入说话风格指令，让机器人用简短自然的方式回复", "1.0.0")
+class BubblyBarto(Star):
+    def __init__(self, context: Context, config: dict | None = None):
+        super().__init__(context, config)
+        self.config = config or {}
 
-    async def terminate(self):
-        """可选择实现异步的插件销毁方法，当插件被卸载/停用时会调用。"""
+    @filter.on_llm_request()
+    async def on_llm_request(self, event: AstrMessageEvent, req) -> None:
+        """在 LLM 请求前注入说话风格约束"""
+        try:
+            if not self.config.get("enable", True):
+                return
+
+            if STYLE_MARKER in (req.system_prompt or ""):
+                return
+
+            style_prompt = self.config.get(
+                "style_prompt",
+                "【说话风格要求】\n请用简短、自然的方式回复，像真人聊天一样。",
+            )
+
+            req.system_prompt = (
+                (req.system_prompt or "")
+                + f"\n\n{style_prompt}\n{STYLE_MARKER}"
+            )
+
+        except Exception:
+            logger.error(f"[气泡说话] 注入说话风格失败: {traceback.format_exc()}")
