@@ -28,9 +28,17 @@ class BubblyBarto(Star):
                 "【说话风格要求】\n请用简短、自然的方式回复，像真人聊天一样。",
             )
 
+            max_chars = self.config.get("max_total_chars", 500)
+            max_msgs = self.config.get("max_message_count", 3)
+
+            limits = (
+                f"\n- 每次回复总字数不超过 {max_chars} 字"
+                f"\n- 每次回复不要超过 {max_msgs} 条消息"
+            )
+
             req.system_prompt = (
                 (req.system_prompt or "")
-                + f"\n\n{style_prompt}\n{STYLE_MARKER}"
+                + f"\n\n{style_prompt}\n{limits}\n{STYLE_MARKER}"
             )
 
         except Exception:
